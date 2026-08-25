@@ -1,5 +1,9 @@
 import argparse
 import sys
+# Force UTF-8 output on Windows to avoid encoding errors
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 import socket
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
@@ -44,9 +48,9 @@ def print_banner():
  |____/|_|\__,_|\___|_|\_\__,  |
                           |___/ """
     print(RED + art + RESET)
-    print(CYAN + "\n  \U0001f5a4  Blacky \u2014 Offensive Security Toolkit" + RESET)
-    print(GREY + "  \u26a0\ufe0f   For authorized penetration testing only!")
-    print("  " + "\u2500" * 50 + RESET + "\n")
+    print(CYAN + "\n  [*] Blacky -- Offensive Security Toolkit" + RESET)
+    print(GREY + "  [!] For authorized penetration testing only!")
+    print("  " + "-" * 50 + RESET + "\n")
 
 def port_scan(args):
     def parse_ports(ports_str):
