@@ -405,26 +405,30 @@ def pdf_crack(args):
         print(f"[!] Error cracking PDF: {e}")
 
 def network_scan(args):
-    subnet = args.subnet
+    subnet = args.subnet.strip()
+
+    # Strip URL scheme/path if user pastes a full URL (e.g. https://google.com/path)
+    for prefix in ('https://', 'http://'):
+        if subnet.startswith(prefix):
+            subnet = subnet[len(prefix):]
+    subnet = subnet.split('/')[0] if '/' not in subnet or not subnet.replace('.','').replace('/','').isdigit() else subnet
 
     # Auto-resolve domain names to IP and build /24 subnet
     try:
         ipaddress.IPv4Network(subnet, strict=False)
+        print(f"[Network Scanner] Scanning subnet: {subnet}")
     except ValueError:
-        # Not a valid CIDR — try resolving as a domain name
+        # Not a valid CIDR — try resolving as a domain/hostname
         try:
             resolved_ip = socket.gethostbyname(subnet)
-            # Build /24 subnet around the resolved IP
             network = ipaddress.IPv4Network(resolved_ip + '/24', strict=False)
             subnet = str(network)
-            print(f"[Network Scanner] Resolved '{args.subnet}' -> {resolved_ip}")
+            print(f"[Network Scanner] Resolved '{args.subnet.strip()}' -> {resolved_ip}")
             print(f"[Network Scanner] Scanning subnet: {subnet}")
         except socket.gaierror:
-            print(f"[!] Error: '{args.subnet}' is not a valid subnet or resolvable domain.")
-            print(f"    Use format: 192.168.1.0/24")
+            print(f"[!] Error: '{args.subnet.strip()}' is not a valid subnet or resolvable domain.")
+            print(f"    Examples: 192.168.1.0/24  |  google.com  |  172.20.10.1")
             return
-    else:
-        print(f"[Network Scanner] Scanning subnet: {subnet}")
 
     live_hosts = []
     for ip in ipaddress.IPv4Network(subnet, strict=False):
@@ -778,111 +782,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    subparsers = parser.add_subparsers(title='Modules', dest='module', required=True)
-
-    # Port Scanner
-    ps = subparsers.add_parser('port-scan', help='Scan open ports on a target')
-    ps.add_argument('--target', required=True, help='Target IP or hostname')
-    ps.add_argument('--ports', default='1-1024', help='Port range (e.g., 1-1024 or 80,443,8080)')
-    ps.add_argument('--workers', type=int, default=100, help='Number of parallel threads (default: 100)')
-    ps.set_defaults(func=port_scan)
-
-    # Hash Cracker
-    hc = subparsers.add_parser('hash-crack', help='Crack password hashes using a wordlist')
-    hc.add_argument('--hashes', required=True, help='File with hashes (one per line)')
-    hc.add_argument('--wordlist', required=True, help='Wordlist file')
-    hc.set_defaults(func=hash_crack)
-
-    # SSH Brute
-    sshb = subparsers.add_parser('ssh-brute', help='Brute-force SSH logins')
-    sshb.add_argument('--host', required=True, help='Target host')
-    sshb.add_argument('--user', required=True, help='Username')
-    sshb.add_argument('--wordlist', required=True, help='Password wordlist')
-    sshb.set_defaults(func=ssh_brute)
-
-    # FTP Brute
-    ftpb = subparsers.add_parser('ftp-brute', help='Brute-force FTP logins')
-    ftpb.add_argument('--host', required=True, help='Target host')
-    ftpb.add_argument('--user', required=True, help='Username')
-    ftpb.add_argument('--wordlist', required=True, help='Password wordlist')
-    ftpb.set_defaults(func=ftp_brute)
-
-    # Backdoor Server
-    bds = subparsers.add_parser('backdoor-server', help='Start a backdoor shell server')
-    bds.add_argument('--port', type=int, required=True, help='Port to listen on')
-    bds.set_defaults(func=backdoor_server)
-
-    # Backdoor Client
-    bdc = subparsers.add_parser('backdoor-client', help='Connect to a backdoor shell server')
-    bdc.add_argument('--host', required=True, help='Server host')
-    bdc.add_argument('--port', type=int, required=True, help='Server port')
-    bdc.set_defaults(func=backdoor_client)
-
-    # Info Stealer
-    isf = subparsers.add_parser('info-stealer', help='Steal Chrome passwords, clipboard, and system info')
-    isf.set_defaults(func=info_stealer)
-
-    # SSH Botnet
-    sbn = subparsers.add_parser('ssh-botnet', help='Remotely manage SSH-connected machines')
-    sbn.add_argument('--hosts', required=True, help='File with list of hosts')
-    sbn.add_argument('--command', required=True, help='Command to execute')
-    sbn.add_argument('--user', required=True, help='SSH username for all hosts')
-    sbn.add_argument('--password', required=True, help='SSH password for all hosts')
-    sbn.set_defaults(func=ssh_botnet)
-
-    # Vulnerability Scanner
-    vs = subparsers.add_parser('vuln-scan', help='Scan code for vulnerabilities')
-    vs.add_argument('--path', required=True, help='Path to codebase')
-    vs.set_defaults(func=vuln_scan)
-
-    # Subdomain Finder
-    sdf = subparsers.add_parser('subdomain', help='Enumerate subdomains for a domain')
-    sdf.add_argument('--domain', required=True, help='Target domain')
-    sdf.set_defaults(func=subdomain)
-
-    # Alive Subdomains
-    als = subparsers.add_parser('alive-subdomains', help='Check which subdomains from file are alive')
-    als.add_argument('--input', required=True, help='File with subdomains (one per line)')
-    als.add_argument('--output', help='File to save alive subdomains')
-    als.set_defaults(func=alive_subdomains)
-
-    # PDF Protection
-    pdfp = subparsers.add_parser('pdf-protect', help='Add password protection to a PDF')
-    pdfp.add_argument('--input', required=True, help='Input PDF file')
-    pdfp.add_argument('--output', required=True, help='Output PDF file')
-    pdfp.add_argument('--password', required=True, help='Password to set')
-    pdfp.set_defaults(func=pdf_protect)
-
-    # PDF Cracker
-    pdfc = subparsers.add_parser('pdf-crack', help='Crack password of a protected PDF using a wordlist')
-    pdfc.add_argument('--input', required=True, help='Input (protected) PDF file')
-    pdfc.add_argument('--wordlist', required=True, help='Wordlist file')
-    pdfc.set_defaults(func=pdf_crack)
-
-    # Network Scanner
-    nets = subparsers.add_parser('network-scan', help='Scan a subnet for live hosts (ping sweep)')
-    nets.add_argument('--subnet', required=True, help='Subnet to scan (e.g., 192.168.1.0/24)')
-    nets.set_defaults(func=network_scan)
-
-    # Reverse Shell Server
-    brss = subparsers.add_parser('backdoor-reverse-server', help='Start a reverse shell server (waits for incoming connection)')
-    brss.add_argument('--port', type=int, required=True, help='Port to listen on')
-    brss.set_defaults(func=backdoor_reverse_server)
-
-    # Reverse Shell Client
-    brsc = subparsers.add_parser('backdoor-reverse-client', help='Connect back to a reverse shell server')
-    brsc.add_argument('--host', required=True, help='Server host')
-    brsc.add_argument('--port', type=int, required=True, help='Server port')
-    brsc.set_defaults(func=backdoor_reverse_client)
-
-    # Parse and dispatch
-    args = parser.parse_args()
-    try:
-        args.func(args)
-    except Exception as e:
-        print(f"[!] Error: {e}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main() 
