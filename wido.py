@@ -406,7 +406,26 @@ def pdf_crack(args):
 
 def network_scan(args):
     subnet = args.subnet
-    print(f"[Network Scanner] Scanning subnet: {subnet}")
+
+    # Auto-resolve domain names to IP and build /24 subnet
+    try:
+        ipaddress.IPv4Network(subnet, strict=False)
+    except ValueError:
+        # Not a valid CIDR — try resolving as a domain name
+        try:
+            resolved_ip = socket.gethostbyname(subnet)
+            # Build /24 subnet around the resolved IP
+            network = ipaddress.IPv4Network(resolved_ip + '/24', strict=False)
+            subnet = str(network)
+            print(f"[Network Scanner] Resolved '{args.subnet}' -> {resolved_ip}")
+            print(f"[Network Scanner] Scanning subnet: {subnet}")
+        except socket.gaierror:
+            print(f"[!] Error: '{args.subnet}' is not a valid subnet or resolvable domain.")
+            print(f"    Use format: 192.168.1.0/24")
+            return
+    else:
+        print(f"[Network Scanner] Scanning subnet: {subnet}")
+
     live_hosts = []
     for ip in ipaddress.IPv4Network(subnet, strict=False):
         ip_str = str(ip)
@@ -418,6 +437,7 @@ def network_scan(args):
             print(f"[LIVE] {ip_str}")
             live_hosts.append(ip_str)
     print(f"\nTotal live hosts: {len(live_hosts)}")
+
 
 def backdoor_reverse_server(args):
     # socket already imported at module level
@@ -531,7 +551,7 @@ def interactive_mode():
         "domain":   ("Target domain",                   None),
         "input":    ("Input file path",                 None),
         "output":   ("Output file path (Enter to skip)",""),
-        "subnet":   ("Subnet (e.g. 192.168.1.0/24)",   None),
+        "subnet":   ("Subnet or domain (e.g. 192.168.1.0/24 or google.com)", None),
         "port":     ("Port number",                     None),
     }
 
