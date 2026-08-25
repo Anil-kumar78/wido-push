@@ -488,13 +488,277 @@ def backdoor_reverse_client(args):
         client.close()
         print("[Reverse Shell Client] Connection closed.")
 
+def interactive_mode():
+    RED   = "\033[91m"
+    CYAN  = "\033[96m"
+    GREEN = "\033[92m"
+    GREY  = "\033[90m"
+    YELLOW= "\033[93m"
+    RESET = "\033[0m"
+
+    modules = [
+        ("Port Scanner",               port_scan,               ["target", "ports", "workers"]),
+        ("Hash Cracker",               hash_crack,              ["hashes", "wordlist"]),
+        ("SSH Brute-force",            ssh_brute,               ["host", "user", "wordlist"]),
+        ("FTP Brute-force",            ftp_brute,               ["host", "user", "wordlist"]),
+        ("Backdoor Shell Server",      backdoor_server,         ["port"]),
+        ("Backdoor Shell Client",      backdoor_client,         ["host", "port"]),
+        ("Info Stealer",               info_stealer,            []),
+        ("SSH Botnet",                 ssh_botnet,              ["hosts", "command", "user", "password"]),
+        ("Vulnerability Scanner",      vuln_scan,               ["path"]),
+        ("Subdomain Finder",           subdomain,               ["domain"]),
+        ("Alive Subdomain Checker",    alive_subdomains,        ["input", "output"]),
+        ("PDF Protection",             pdf_protect,             ["input", "output", "password"]),
+        ("PDF Cracker",                pdf_crack,               ["input", "wordlist"]),
+        ("Network Scanner",            network_scan,            ["subnet"]),
+        ("Reverse Shell Server",       backdoor_reverse_server, ["port"]),
+        ("Reverse Shell Client",       backdoor_reverse_client, ["host", "port"]),
+    ]
+
+    # Input prompts and defaults for each argument
+    prompts = {
+        "target":   ("Target IP or hostname",          None),
+        "host":     ("Target host / IP",               None),
+        "ports":    ("Ports (e.g. 80,443 or 1-1024)",  "1-1024"),
+        "workers":  ("Threads",                         100),
+        "hashes":   ("Hashes file path",               None),
+        "wordlist": ("Wordlist file path",              None),
+        "user":     ("Username",                        None),
+        "password": ("Password",                        None),
+        "hosts":    ("Hosts file path",                 None),
+        "command":  ("Command to execute",              None),
+        "path":     ("Path to scan",                    "."),
+        "domain":   ("Target domain",                   None),
+        "input":    ("Input file path",                 None),
+        "output":   ("Output file path (Enter to skip)",""),
+        "subnet":   ("Subnet (e.g. 192.168.1.0/24)",   None),
+        "port":     ("Port number",                     None),
+    }
+
+    while True:
+        # Print module menu
+        print(CYAN + "  ╔══════════════════════════════════════════════════╗")
+        print("  ║           SELECT A MODULE TO RUN                 ║")
+        print("  ╚══════════════════════════════════════════════════╝" + RESET)
+        print()
+
+        categories = {
+            "SCANNING":     [1, 10, 11, 14],
+            "BRUTE FORCE":  [2, 3, 4],
+            "BACKDOOR":     [5, 6, 15, 16],
+            "INTELLIGENCE": [7, 8, 9],
+            "PDF TOOLS":    [12, 13],
+        }
+
+        for cat, nums in categories.items():
+            print(f"  {YELLOW}[ {cat} ]{RESET}")
+            for n in nums:
+                name, _, _ = modules[n - 1]
+                print(f"    {GREEN}[{n:2d}]{RESET}  {name}")
+            print()
+
+        print(f"  {RED}[ 0 ]  Exit{RESET}")
+        print()
+
+        try:
+            raw = input(CYAN + "  Enter module number: " + RESET).strip()
+            if not raw:
+                continue
+            choice = int(raw)
+        except (ValueError, KeyboardInterrupt):
+            print(f"\n{RED}  [!] Invalid input. Please enter a number.{RESET}\n")
+            continue
+
+        if choice == 0:
+            print(f"\n{CYAN}  [*] Goodbye! Stay ethical. 🖤{RESET}\n")
+            break
+
+        if not (1 <= choice <= len(modules)):
+            print(f"\n{RED}  [!] Invalid choice. Select 1-{len(modules)} or 0 to exit.{RESET}\n")
+            continue
+
+        name, func, required_args = modules[choice - 1]
+        print()
+        print(CYAN + f"  ╔══════════════════════════════════════════════════╗")
+        print(f"  ║  Module : {name:<38s}║")
+        print(f"  ╚══════════════════════════════════════════════════╝" + RESET)
+        print()
+
+        # Collect inputs
+        args = argparse.Namespace()
+        try:
+            for arg in required_args:
+                label, default = prompts.get(arg, (arg, None))
+                if default is not None and default != "":
+                    prompt_str = f"  {GREEN}>{RESET} {label} [{GREY}default: {default}{RESET}]: "
+                elif default == "":
+                    prompt_str = f"  {GREEN}>{RESET} {label} [{GREY}optional, press Enter to skip{RESET}]: "
+                else:
+                    prompt_str = f"  {GREEN}>{RESET} {label}: "
+
+                val = input(prompt_str).strip()
+
+                # Apply defaults
+                if not val:
+                    if default is not None:
+                        val = default
+                    else:
+                        val = None
+
+                # Type conversion for numeric fields
+                if arg in ("port", "workers") and val is not None:
+                    try:
+                        val = int(val)
+                    except ValueError:
+                        val = 4444 if arg == "port" else 100
+
+                setattr(args, arg, val)
+        except KeyboardInterrupt:
+            print(f"\n{RED}  [!] Cancelled.{RESET}\n")
+            continue
+
+        # Execute module
+        print()
+        print(GREY + "  " + "-" * 50 + RESET)
+        try:
+            func(args)
+        except Exception as e:
+            print(f"{RED}  [!] Error: {e}{RESET}")
+
+        print()
+        print(GREY + "  " + "-" * 50 + RESET)
+        try:
+            again = input(f"\n  {CYAN}Press Enter to return to menu or 'q' to quit: {RESET}").strip().lower()
+            if again == 'q':
+                print(f"\n{CYAN}  [*] Goodbye! Stay ethical. 🖤{RESET}\n")
+                break
+        except KeyboardInterrupt:
+            break
+        print()
+
+
 def main():
     print_banner()
+
+    # If no arguments given → launch interactive menu
+    if len(sys.argv) == 1:
+        interactive_mode()
+        return
+
+    # Otherwise → use CLI argument mode (backward compatible)
     parser = argparse.ArgumentParser(
         prog='wido',
         description='Blacky: All-in-one Offensive Security Toolkit',
         formatter_class=argparse.RawTextHelpFormatter
     )
+    subparsers = parser.add_subparsers(title='Modules', dest='module', required=True)
+
+    # Port Scanner
+    ps = subparsers.add_parser('port-scan', help='Scan open ports on a target')
+    ps.add_argument('--target', required=True, help='Target IP or hostname')
+    ps.add_argument('--ports', default='1-1024', help='Port range (e.g., 1-1024 or 80,443,8080)')
+    ps.add_argument('--workers', type=int, default=100, help='Number of parallel threads (default: 100)')
+    ps.set_defaults(func=port_scan)
+
+    # Hash Cracker
+    hc = subparsers.add_parser('hash-crack', help='Crack password hashes using a wordlist')
+    hc.add_argument('--hashes', required=True, help='File with hashes (one per line)')
+    hc.add_argument('--wordlist', required=True, help='Wordlist file')
+    hc.set_defaults(func=hash_crack)
+
+    # SSH Brute
+    sshb = subparsers.add_parser('ssh-brute', help='Brute-force SSH logins')
+    sshb.add_argument('--host', required=True, help='Target host')
+    sshb.add_argument('--user', required=True, help='Username')
+    sshb.add_argument('--wordlist', required=True, help='Password wordlist')
+    sshb.set_defaults(func=ssh_brute)
+
+    # FTP Brute
+    ftpb = subparsers.add_parser('ftp-brute', help='Brute-force FTP logins')
+    ftpb.add_argument('--host', required=True, help='Target host')
+    ftpb.add_argument('--user', required=True, help='Username')
+    ftpb.add_argument('--wordlist', required=True, help='Password wordlist')
+    ftpb.set_defaults(func=ftp_brute)
+
+    # Backdoor Server
+    bds = subparsers.add_parser('backdoor-server', help='Start a backdoor shell server')
+    bds.add_argument('--port', type=int, required=True, help='Port to listen on')
+    bds.set_defaults(func=backdoor_server)
+
+    # Backdoor Client
+    bdc = subparsers.add_parser('backdoor-client', help='Connect to a backdoor shell server')
+    bdc.add_argument('--host', required=True, help='Server host')
+    bdc.add_argument('--port', type=int, required=True, help='Server port')
+    bdc.set_defaults(func=backdoor_client)
+
+    # Info Stealer
+    isf = subparsers.add_parser('info-stealer', help='Steal Chrome passwords, clipboard, and system info')
+    isf.set_defaults(func=info_stealer)
+
+    # SSH Botnet
+    sbn = subparsers.add_parser('ssh-botnet', help='Remotely manage SSH-connected machines')
+    sbn.add_argument('--hosts', required=True, help='File with list of hosts')
+    sbn.add_argument('--command', required=True, help='Command to execute')
+    sbn.add_argument('--user', required=True, help='SSH username for all hosts')
+    sbn.add_argument('--password', required=True, help='SSH password for all hosts')
+    sbn.set_defaults(func=ssh_botnet)
+
+    # Vulnerability Scanner
+    vs = subparsers.add_parser('vuln-scan', help='Scan code for vulnerabilities')
+    vs.add_argument('--path', required=True, help='Path to codebase')
+    vs.set_defaults(func=vuln_scan)
+
+    # Subdomain Finder
+    sdf = subparsers.add_parser('subdomain', help='Enumerate subdomains for a domain')
+    sdf.add_argument('--domain', required=True, help='Target domain')
+    sdf.set_defaults(func=subdomain)
+
+    # Alive Subdomains
+    als = subparsers.add_parser('alive-subdomains', help='Check which subdomains from file are alive')
+    als.add_argument('--input', required=True, help='File with subdomains (one per line)')
+    als.add_argument('--output', help='File to save alive subdomains')
+    als.set_defaults(func=alive_subdomains)
+
+    # PDF Protection
+    pdfp = subparsers.add_parser('pdf-protect', help='Add password protection to a PDF')
+    pdfp.add_argument('--input', required=True, help='Input PDF file')
+    pdfp.add_argument('--output', required=True, help='Output PDF file')
+    pdfp.add_argument('--password', required=True, help='Password to set')
+    pdfp.set_defaults(func=pdf_protect)
+
+    # PDF Cracker
+    pdfc = subparsers.add_parser('pdf-crack', help='Crack password of a protected PDF using a wordlist')
+    pdfc.add_argument('--input', required=True, help='Input (protected) PDF file')
+    pdfc.add_argument('--wordlist', required=True, help='Wordlist file')
+    pdfc.set_defaults(func=pdf_crack)
+
+    # Network Scanner
+    nets = subparsers.add_parser('network-scan', help='Scan a subnet for live hosts (ping sweep)')
+    nets.add_argument('--subnet', required=True, help='Subnet to scan (e.g., 192.168.1.0/24)')
+    nets.set_defaults(func=network_scan)
+
+    # Reverse Shell Server
+    brss = subparsers.add_parser('backdoor-reverse-server', help='Start a reverse shell server (waits for incoming connection)')
+    brss.add_argument('--port', type=int, required=True, help='Port to listen on')
+    brss.set_defaults(func=backdoor_reverse_server)
+
+    # Reverse Shell Client
+    brsc = subparsers.add_parser('backdoor-reverse-client', help='Connect back to a reverse shell server')
+    brsc.add_argument('--host', required=True, help='Server host')
+    brsc.add_argument('--port', type=int, required=True, help='Server port')
+    brsc.set_defaults(func=backdoor_reverse_client)
+
+    # Parse and dispatch
+    args = parser.parse_args()
+    try:
+        args.func(args)
+    except Exception as e:
+        print(f"[!] Error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+
     subparsers = parser.add_subparsers(title='Modules', dest='module', required=True)
 
     # Port Scanner
